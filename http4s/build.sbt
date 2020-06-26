@@ -1,19 +1,19 @@
 
 val http4sOrg = "org.http4s"
-val http4sVersion = "0.18.11"
-val dockeritVersion = "0.9.0"
+val http4sVersion = "0.21.5"
+val dockeritVersion = "0.9.9"
 
-scalaTestVersion  := "3.0.1"
+scalaVersion in ThisBuild := "2.13.1"
+scalaTestVersion  := "3.2.0"
 scalaCheckVersion := "1.13.4"
 
 libraryDependencies ++= Seq(
-  "io.verizon.journal" %% "core"                            % "3.0.18",
+  "io.verizon.journal" % "core_2.12"                            % "3.0.18",
   http4sOrg            %% "http4s-blaze-client"             % http4sVersion,
   http4sOrg            %% "http4s-argonaut"                 % http4sVersion,
   "com.whisk"          %% "docker-testkit-scalatest"        % dockeritVersion % "test",
   "com.whisk"          %% "docker-testkit-impl-docker-java" % dockeritVersion % "test"
 )
-
 (initialCommands in console) := """
 import helm._
 import http4s._
