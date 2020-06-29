@@ -2,11 +2,12 @@ package helm
 
 import argonaut._, Argonaut._
 import cats.effect.IO
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalactic.TypeCheckedTripleEquals
 import ConsulOp._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ConsulOpTests extends FlatSpec with Matchers with TypeCheckedTripleEquals {
+class ConsulOpTests extends AnyFlatSpec with Matchers with TypeCheckedTripleEquals {
   val I = Interpreter.prepare[ConsulOp, IO]
 
   "getJson" should "return none right when get returns None" in {
