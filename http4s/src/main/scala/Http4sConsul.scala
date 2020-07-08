@@ -1,6 +1,7 @@
 package helm
 package http4s
 
+import org.slf4j.{Logger, LoggerFactory}
 import argonaut.Json
 import argonaut.Json.jEmptyObject
 import argonaut.StringWrap.StringToStringWrap
@@ -8,7 +9,8 @@ import cats.data.NonEmptyList
 import cats.effect.Effect
 import cats.~>
 import cats.implicits._
-import journal.Logger
+import helm.ConsulOp
+import helm.ConsulOp.AgentListServices
 import org.http4s.Method.PUT
 import org.http4s._
 import org.http4s.argonaut._
@@ -19,11 +21,11 @@ import org.http4s.Status.Successful
 import org.http4s.syntax.string.http4sStringSyntax
 
 final class Http4sConsulClient[F[_]](
-  baseUri: Uri,
-  client: Client[F],
-  accessToken: Option[String] = None,
-  credentials: Option[(String,String)] = None)
-  (implicit F: Effect[F]) extends (ConsulOp ~> F) {
+                                      baseUri: Uri,
+                                      client: Client[F],
+                                      accessToken: Option[String] = None,
+                                      credentials: Option[(String,String)] = None)
+                                    (implicit F: Effect[F]) extends (ConsulOp ~> F) {
 
   private[this] val dsl = new Http4sClientDsl[F]{}
   import dsl._
@@ -35,7 +37,23 @@ final class Http4sConsulClient[F[_]](
   private implicit val listHealthNodesForServiceResponseDecoder: EntityDecoder[F, List[HealthNodesForServiceResponse]] =
     jsonOf[F, List[HealthNodesForServiceResponse]]
 
-  private val log = Logger[this.type]
+  private val log =  LoggerFactory.getLogger(this.getClass)
+
+  /* def apply[A](op: ConsulOp.KVGet) = kvGet(op.key, op.recurse, op.datacenter, op.separator, op.index, op.maxWait)
+   def apply[A](op: ConsulOp.KVGetRaw) = kvGetRaw(op.key, op.index, op.maxWait)
+   def apply[A](op: ConsulOp.KVSet) =  kvSet(op.key, op.value)
+   def apply[A](op: ConsulOp.KVListKeys) =  kvList(op.prefix)
+   def apply[A](op: ConsulOp.KVDelete) =  kvDelete(op.key)
+   def apply[A](op: ConsulOp.HealthListChecksForService) =  healthChecksForService(op.service, op.datacenter, op.near, op.nodeMeta, op.index, op.maxWait)
+   def apply[A](op: ConsulOp.HealthListChecksForNode) =   healthChecksForNode(op.node, op.datacenter, op.index, op.maxWait)
+   def apply[A](op: ConsulOp.HealthListChecksInState) =   healthChecksInState(op.state, op.datacenter, op.near, op.nodeMeta, op.index, op.maxWait)
+   def apply[A](op: ConsulOp.HealthListNodesForService) =  healthNodesForService(op.service, op.datacenter, op.near, op.nodeMeta, op.tag, op.passingOnly, op.index, op.maxWait)
+   def apply[A](op: ConsulOp.AgentRegisterService) =    agentRegisterService(op.service, op.id, op.tags, op.address, op.port, op.enableTagOverride, op.check, op.checks)
+   def apply[A](op: ConsulOp.AgentDeregisterService) =  agentDeregisterService(op.id)
+   def apply[A](op: ConsulOp[Map[String, ServiceResponse]]) =  agentListServices()
+  // def apply[A](ConsulOp.AgentListServices) =  agentListServices()
+   def apply[A](op: ConsulOp.AgentEnableMaintenanceMode) =   agentEnableMaintenanceMode(op.id, op.enable, op.reason)*/
+
 
   def apply[A](op: ConsulOp[A]): F[A] = op match {
     case ConsulOp.KVGet(key, recurse, datacenter, separator, index, wait) =>
@@ -60,6 +78,8 @@ final class Http4sConsulClient[F[_]](
       agentEnableMaintenanceMode(id, enable, reason)
   }
 
+
+
   private def addConsulToken(req: Request[F]): Request[F] =
     accessToken.fold(req)(tok => req.putHeaders(Header("X-Consul-Token", tok)))
 
@@ -68,10 +88,10 @@ final class Http4sConsulClient[F[_]](
 
   /** A nice place to store the Consul response headers so we can pass them around */
   private case class ConsulHeaders(
-    index:       Long,
-    lastContact: Long,
-    knownLeader: Boolean
-  )
+                                    index:       Long,
+                                    lastContact: Long,
+                                    knownLeader: Boolean
+                                  )
 
   /** Helper function to get the value of a header out of a Response. Only used by extractConsulHeaders */
   private def extractHeaderValue(header: String, response: Response[F]): F[String] = {
@@ -91,9 +111,9 @@ final class Http4sConsulClient[F[_]](
   }
 
   /**
-    * Encapsulates the functionality for parsing out the Consul headers from the HTTP response and decoding the JSON body.
-    * Note: these headers are only present for a portion of the API.
-    */
+   * Encapsulates the functionality for parsing out the Consul headers from the HTTP response and decoding the JSON body.
+   * Note: these headers are only present for a portion of the API.
+   */
   private def extractQueryResponse[A](response: Response[F])(implicit d: EntityDecoder[F, A]): F[QueryResponse[A]] = response match {
     case Successful(_) =>
       for {
@@ -111,13 +131,13 @@ final class Http4sConsulClient[F[_]](
   }
 
   def kvGet(
-    key:        Key,
-    recurse:    Option[Boolean],
-    datacenter: Option[String],
-    separator:  Option[String],
-    index:      Option[Long],
-    wait:       Option[Interval]
-  ): F[QueryResponse[List[KVGetResult]]] = {
+             key:        Key,
+             recurse:    Option[Boolean],
+             datacenter: Option[String],
+             separator:  Option[String],
+             index:      Option[Long],
+             wait:       Option[Interval]
+           ): F[QueryResponse[List[KVGetResult]]] = {
     for {
       _ <- F.delay(log.debug(s"fetching consul key $key"))
       req = addCreds(addConsulToken(
@@ -149,10 +169,10 @@ final class Http4sConsulClient[F[_]](
   }
 
   def kvGetRaw(
-    key:   Key,
-    index: Option[Long],
-    wait:  Option[Interval]
-  ): F[QueryResponse[Option[Array[Byte]]]] = {
+                key:   Key,
+                index: Option[Long],
+                wait:  Option[Interval]
+              ): F[QueryResponse[Option[Array[Byte]]]] = {
     for {
       _ <- F.delay(log.debug(s"fetching consul key $key"))
       req = addCreds(addConsulToken(
@@ -168,7 +188,7 @@ final class Http4sConsulClient[F[_]](
             for {
               headers <- extractConsulHeaders(response)
               value   <- if (status == Status.Ok) {
-                response.body.compile.to[Array].map {
+                response.body.compile.to(Array).map {
                   case Array() => None
                   case nonEmpty => Some(nonEmpty)
                 }
@@ -189,7 +209,10 @@ final class Http4sConsulClient[F[_]](
   def kvSet(key: Key, value: Array[Byte]): F[Unit] =
     for {
       _ <- F.delay(log.debug(s"setting consul key $key to $value"))
-      req <- PUT(uri = baseUri / "v1" / "kv" / key, value).map(addConsulToken).map(addCreds)
+
+      val req = addCreds(addConsulToken(Request(Method.PUT, baseUri / "v1" / "kv" /key)
+        .withEntity(value)))
+
       response <- client.expectOr[String](req)(handleConsulErrorResponse)
     } yield log.debug(s"setting consul key $key resulted in response $response")
 
@@ -215,13 +238,13 @@ final class Http4sConsulClient[F[_]](
   }
 
   def healthChecksForService(
-    service:    String,
-    datacenter: Option[String],
-    near:       Option[String],
-    nodeMeta:   Option[String],
-    index:      Option[Long],
-    wait:       Option[Interval]
-  ): F[QueryResponse[List[HealthCheckResponse]]] = {
+                              service:    String,
+                              datacenter: Option[String],
+                              near:       Option[String],
+                              nodeMeta:   Option[String],
+                              index:      Option[Long],
+                              wait:       Option[Interval]
+                            ): F[QueryResponse[List[HealthCheckResponse]]] = {
     for {
       _ <- F.delay(log.debug(s"fetching health checks for service $service"))
       req = addCreds(addConsulToken(
@@ -241,11 +264,11 @@ final class Http4sConsulClient[F[_]](
   }
 
   def healthChecksForNode(
-    node:       String,
-    datacenter: Option[String],
-    index:      Option[Long],
-    wait:       Option[Interval]
-  ): F[QueryResponse[List[HealthCheckResponse]]] = {
+                           node:       String,
+                           datacenter: Option[String],
+                           index:      Option[Long],
+                           wait:       Option[Interval]
+                         ): F[QueryResponse[List[HealthCheckResponse]]] = {
     for {
       _ <- F.delay(log.debug(s"fetching health checks for node $node"))
       req = addCreds(addConsulToken(
@@ -263,13 +286,13 @@ final class Http4sConsulClient[F[_]](
   }
 
   def healthChecksInState(
-    state:      HealthStatus,
-    datacenter: Option[String],
-    near:       Option[String],
-    nodeMeta:   Option[String],
-    index:      Option[Long],
-    wait:       Option[Interval]
-  ): F[QueryResponse[List[HealthCheckResponse]]] = {
+                           state:      HealthStatus,
+                           datacenter: Option[String],
+                           near:       Option[String],
+                           nodeMeta:   Option[String],
+                           index:      Option[Long],
+                           wait:       Option[Interval]
+                         ): F[QueryResponse[List[HealthCheckResponse]]] = {
     for {
       _ <- F.delay(log.debug(s"fetching health checks for service ${HealthStatus.toString(state)}"))
       req = addCreds(addConsulToken(
@@ -289,15 +312,15 @@ final class Http4sConsulClient[F[_]](
   }
 
   def healthNodesForService(
-    service:     String,
-    datacenter:  Option[String],
-    near:        Option[String],
-    nodeMeta:    Option[String],
-    tag:         Option[String],
-    passingOnly: Option[Boolean],
-    index:       Option[Long],
-    wait:        Option[Interval]
-  ): F[QueryResponse[List[HealthNodesForServiceResponse]]] = {
+                             service:     String,
+                             datacenter:  Option[String],
+                             near:        Option[String],
+                             nodeMeta:    Option[String],
+                             tag:         Option[String],
+                             passingOnly: Option[Boolean],
+                             index:       Option[Long],
+                             wait:        Option[Interval]
+                           ): F[QueryResponse[List[HealthNodesForServiceResponse]]] = {
     for {
       _ <- F.delay(log.debug(s"fetching nodes for service $service from health API"))
       req = addCreds(addConsulToken(
@@ -320,29 +343,31 @@ final class Http4sConsulClient[F[_]](
   }
 
   def agentRegisterService(
-    service:           String,
-    id:                Option[String],
-    tags:              Option[NonEmptyList[String]],
-    address:           Option[String],
-    port:              Option[Int],
-    enableTagOverride: Option[Boolean],
-    check:             Option[HealthCheckParameter],
-    checks:            Option[NonEmptyList[HealthCheckParameter]]
-  ): F[Unit] = {
+                            service:           String,
+                            id:                Option[String],
+                            tags:              Option[NonEmptyList[String]],
+                            address:           Option[String],
+                            port:              Option[Int],
+                            enableTagOverride: Option[Boolean],
+                            check:             Option[HealthCheckParameter],
+                            checks:            Option[NonEmptyList[HealthCheckParameter]]
+                          ): F[Unit] = {
     val json: Json =
       ("Name"              :=  service)              ->:
-      ("ID"                :=? id)                   ->?:
-      ("Tags"              :=? tags.map(_.toList))   ->?:
-      ("Address"           :=? address)              ->?:
-      ("Port"              :=? port)                 ->?:
-      ("EnableTagOverride" :=? enableTagOverride)    ->?:
-      ("Check"             :=? check)                ->?:
-      ("Checks"            :=? checks.map(_.toList)) ->?:
-      jEmptyObject
+        ("ID"                :=? id)                   ->?:
+        ("Tags"              :=? tags.map(_.toList))   ->?:
+        ("Address"           :=? address)              ->?:
+        ("Port"              :=? port)                 ->?:
+        ("EnableTagOverride" :=? enableTagOverride)    ->?:
+        ("Check"             :=? check)                ->?:
+        ("Checks"            :=? checks.map(_.toList)) ->?:
+        jEmptyObject
 
     for {
       _ <- F.delay(log.debug(s"registering $service with json: ${json.toString}"))
-      req <- PUT(baseUri / "v1" / "agent" / "service" / "register", json).map(addConsulToken).map(addCreds)
+      // req <- PUT(baseUri / "v1" / "agent" / "service" / "register", json).map(addConsulToken).map(addCreds)
+      val req = addCreds(addConsulToken(Request(method = Method.PUT, uri = baseUri / "v1" / "agent" / "service" / "register")
+        .withEntity(json)))
       response <- client.expectOr[String](req)(handleConsulErrorResponse)
     } yield log.debug(s"registering service $service resulted in response $response")
   }

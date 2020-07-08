@@ -1,4 +1,3 @@
-import verizon.build.RigPlugin.autoImport.scalaTestVersion
 
 organization in ThisBuild := "com.getvisibility"
 
@@ -12,13 +11,14 @@ credentials in ThisBuild += Credentials(Path.userHome / ".ivy2" / "gv-credential
 
 publishTo in ThisBuild := Some("Getvisibility artefacts" at "https://registry2.getvisibility.com/artifactory/ivy-dev/")
 
-val scalaTest = "org.scalatest" %% "scalatest" % "3.2.0" % Test
+//val scalaTest = "org.scalatest" %% "scalatest" % "3.2.0" % Test
 
 lazy val `helm` = (project in file("."))
-  .aggregate(`core`, `http4s`).settings(
-  libraryDependencies ++= Seq(scalaTest,
-    "org.scalacheck" %% "scalacheck" % "1.14.3")
-)
+  .aggregate(`core`, `http4s`)
+  //.settings(
+  //libraryDependencies ++= Seq(scalaTest,
+  //  "org.scalacheck" %% "scalacheck" % "1.14.3")
+//)
 
 lazy val `core` = project
   .settings(
@@ -26,8 +26,8 @@ lazy val `core` = project
       "io.argonaut" %% "argonaut" % "6.3.0",
       "org.typelevel" %% "cats-free" % "2.1.1",
       "org.typelevel" %% "cats-effect" % "2.1.3",
-      "org.scalacheck" %% "scalacheck" % "1.14.3",
-      scalaTest
+      "org.scalacheck" %% "scalacheck" % "1.14.3"//,
+      //scalaTest
     )
   )
 
@@ -38,11 +38,11 @@ val dockeritVersion = "0.9.9"
 lazy val `http4s` = project
   .settings(
     libraryDependencies ++= Seq(
-      "io.verizon.journal" % "core_2.12" % "3.0.19",
+    //  "io.verizon.journal" % "core_2.12" % "3.0.19",
       http4sOrg %% "http4s-blaze-client" % http4sVersion,
       http4sOrg %% "http4s-argonaut" % http4sVersion,
       "com.whisk" %% "docker-testkit-scalatest" % dockeritVersion % "test",
-      "com.whisk" %% "docker-testkit-impl-docker-java" % dockeritVersion % "test",
-      scalaTest
+      "com.whisk" %% "docker-testkit-impl-docker-java" % dockeritVersion % "test"//,
+    //  scalaTest
     )
   ).dependsOn(`core`)
