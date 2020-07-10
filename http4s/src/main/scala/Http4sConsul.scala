@@ -35,21 +35,6 @@ final class Http4sConsulClient[F[_]](
 
   private val log =  LoggerFactory.getLogger(this.getClass)
 
-  /* def apply[A](op: ConsulOp.KVGet) = kvGet(op.key, op.recurse, op.datacenter, op.separator, op.index, op.maxWait)
-   def apply[A](op: ConsulOp.KVGetRaw) = kvGetRaw(op.key, op.index, op.maxWait)
-   def apply[A](op: ConsulOp.KVSet) =  kvSet(op.key, op.value)
-   def apply[A](op: ConsulOp.KVListKeys) =  kvList(op.prefix)
-   def apply[A](op: ConsulOp.KVDelete) =  kvDelete(op.key)
-   def apply[A](op: ConsulOp.HealthListChecksForService) =  healthChecksForService(op.service, op.datacenter, op.near, op.nodeMeta, op.index, op.maxWait)
-   def apply[A](op: ConsulOp.HealthListChecksForNode) =   healthChecksForNode(op.node, op.datacenter, op.index, op.maxWait)
-   def apply[A](op: ConsulOp.HealthListChecksInState) =   healthChecksInState(op.state, op.datacenter, op.near, op.nodeMeta, op.index, op.maxWait)
-   def apply[A](op: ConsulOp.HealthListNodesForService) =  healthNodesForService(op.service, op.datacenter, op.near, op.nodeMeta, op.tag, op.passingOnly, op.index, op.maxWait)
-   def apply[A](op: ConsulOp.AgentRegisterService) =    agentRegisterService(op.service, op.id, op.tags, op.address, op.port, op.enableTagOverride, op.check, op.checks)
-   def apply[A](op: ConsulOp.AgentDeregisterService) =  agentDeregisterService(op.id)
-   def apply[A](op: ConsulOp[Map[String, ServiceResponse]]) =  agentListServices()
-  // def apply[A](ConsulOp.AgentListServices) =  agentListServices()
-   def apply[A](op: ConsulOp.AgentEnableMaintenanceMode) =   agentEnableMaintenanceMode(op.id, op.enable, op.reason)*/
-
 
   def apply[A](op: ConsulOp[A]): F[A] = op match {
     case ConsulOp.KVGet(key, recurse, datacenter, separator, index, wait) =>
@@ -73,8 +58,6 @@ final class Http4sConsulClient[F[_]](
     case ConsulOp.AgentEnableMaintenanceMode(id, enable, reason) =>
       agentEnableMaintenanceMode(id, enable, reason).asInstanceOf[F[A]]
   }
-
-
 
   private def addConsulToken(req: Request[F]): Request[F] =
     accessToken.fold(req)(tok => req.putHeaders(Header("X-Consul-Token", tok)))
@@ -150,7 +133,7 @@ final class Http4sConsulClient[F[_]](
           case status@(Status.Ok|Status.NotFound) =>
             for {
               headers <- extractConsulHeaders(response)
-              value   <- if (status == Status.Ok) response.as[List[KVGetResult]] else F.pure(List.empty)
+              value <- if (status == Status.Ok) response.as[List[KVGetResult]] else F.pure(List.empty.asInstanceOf[List[KVGetResult]])
             } yield {
               QueryResponse(value, headers.index, headers.knownLeader, headers.lastContact)
             }
@@ -164,12 +147,14 @@ final class Http4sConsulClient[F[_]](
     }
   }
 
+
   def kvGetRaw(
                 key:   Key,
                 index: Option[Long],
                 wait:  Option[Interval]
               ): F[QueryResponse[Option[Array[Byte]]]] = {
     for {
+
       _ <- F.delay(log.debug(s"fetching consul key $key"))
       req = addCreds(addConsulToken(
         Request(
@@ -180,15 +165,15 @@ final class Http4sConsulClient[F[_]](
               .+??("wait", wait.map(Interval.toString)))))
       response <- client.fetch[QueryResponse[Option[Array[Byte]]]](req) { response: Response[F] =>
         response.status match {
-          case status@(Status.Ok|Status.NotFound) =>
+          case status@(Status.Ok | Status.NotFound) =>
+            val f1: F[Option[Array[Byte]]] = response.body.compile.to(Array).map {
+              case Array() => None
+              case nonEmpty => Some(nonEmpty)
+            }
+            val f2: F[Option[Array[Byte]]] = F.pure(None)
             for {
               headers <- extractConsulHeaders(response)
-              value   <- if (status == Status.Ok) {
-                response.body.compile.to(Array).map {
-                  case Array() => None
-                  case nonEmpty => Some(nonEmpty)
-                }
-              } else F.pure(None)
+              value <- if (status == Status.Ok) f1 else f2
             } yield {
               QueryResponse(value, headers.index, headers.knownLeader, headers.lastContact)
             }
@@ -202,15 +187,16 @@ final class Http4sConsulClient[F[_]](
     }
   }
 
-  def kvSet(key: Key, value: Array[Byte]): F[Unit] =
+  def kvSet(key: Key, value: Array[Byte]): F[Unit] = {
     for {
       _ <- F.delay(log.debug(s"setting consul key $key to $value"))
 
-      val req = addCreds(addConsulToken(Request(Method.PUT, baseUri / "v1" / "kv" /key)
+      val req = addCreds(addConsulToken(Request(Method.PUT, baseUri / "v1" / "kv" / key)
         .withEntity(value)))
 
       response <- client.expectOr[String](req)(handleConsulErrorResponse)
     } yield log.debug(s"setting consul key $key resulted in response $response")
+  }
 
   def kvList(prefix: Key): F[Set[Key]] = {
     val req = addCreds(addConsulToken(Request(uri = (baseUri / "v1" / "kv" / prefix).withQueryParam(QueryParam.fromKey("keys")))))
