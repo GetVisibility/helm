@@ -1,24 +1,21 @@
 package helm
 package http4s
 
-import org.slf4j.{Logger, LoggerFactory}
 import argonaut.Json
 import argonaut.Json.jEmptyObject
 import argonaut.StringWrap.StringToStringWrap
 import cats.data.NonEmptyList
 import cats.effect.Effect
-import cats.~>
 import cats.implicits._
-import helm.ConsulOp
-import helm.ConsulOp.AgentListServices
-import org.http4s.Method.PUT
+import cats.~>
+import org.http4s.Status.Successful
 import org.http4s._
 import org.http4s.argonaut._
 import org.http4s.client._
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.headers.Authorization
-import org.http4s.Status.Successful
 import org.http4s.syntax.string.http4sStringSyntax
+import org.slf4j.LoggerFactory
 
 final class Http4sConsulClient[F[_]](
                                       baseUri: Uri,
@@ -28,7 +25,6 @@ final class Http4sConsulClient[F[_]](
                                     (implicit F: Effect[F]) extends (ConsulOp ~> F) {
 
   private[this] val dsl = new Http4sClientDsl[F]{}
-  import dsl._
 
   private implicit val keysDecoder: EntityDecoder[F, List[String]] = jsonOf[F, List[String]]
   private implicit val listKvGetResultDecoder: EntityDecoder[F, List[KVGetResult]] = jsonOf[F, List[KVGetResult]]
@@ -57,25 +53,25 @@ final class Http4sConsulClient[F[_]](
 
   def apply[A](op: ConsulOp[A]): F[A] = op match {
     case ConsulOp.KVGet(key, recurse, datacenter, separator, index, wait) =>
-      kvGet(key, recurse, datacenter, separator, index, wait)
-    case ConsulOp.KVGetRaw(key, index, wait) => kvGetRaw(key, index, wait)
-    case ConsulOp.KVSet(key, value)  => kvSet(key, value)
-    case ConsulOp.KVListKeys(prefix) => kvList(prefix)
-    case ConsulOp.KVDelete(key)      => kvDelete(key)
+      (kvGet(key, recurse, datacenter, separator, index, wait)).asInstanceOf[F[A]]
+    case ConsulOp.KVGetRaw(key, index, wait) => kvGetRaw(key, index, wait).asInstanceOf[F[A]]
+    case ConsulOp.KVSet(key, value) => kvSet(key, value).asInstanceOf[F[A]]
+    case ConsulOp.KVListKeys(prefix) => kvList(prefix).asInstanceOf[F[A]]
+    case ConsulOp.KVDelete(key) => kvDelete(key).asInstanceOf[F[A]]
     case ConsulOp.HealthListChecksForService(service, datacenter, near, nodeMeta, index, wait) =>
-      healthChecksForService(service, datacenter, near, nodeMeta, index, wait)
+      healthChecksForService(service, datacenter, near, nodeMeta, index, wait).asInstanceOf[F[A]]
     case ConsulOp.HealthListChecksForNode(node, datacenter, index, wait) =>
-      healthChecksForNode(node, datacenter, index, wait)
+      healthChecksForNode(node, datacenter, index, wait).asInstanceOf[F[A]]
     case ConsulOp.HealthListChecksInState(state, datacenter, near, nodeMeta, index, wait) =>
-      healthChecksInState(state, datacenter, near, nodeMeta, index, wait)
+      healthChecksInState(state, datacenter, near, nodeMeta, index, wait).asInstanceOf[F[A]]
     case ConsulOp.HealthListNodesForService(service, datacenter, near, nodeMeta, tag, passingOnly, index, wait) =>
-      healthNodesForService(service, datacenter, near, nodeMeta, tag, passingOnly, index, wait)
+      healthNodesForService(service, datacenter, near, nodeMeta, tag, passingOnly, index, wait).asInstanceOf[F[A]]
     case ConsulOp.AgentRegisterService(service, id, tags, address, port, enableTagOverride, check, checks) =>
-      agentRegisterService(service, id, tags, address, port, enableTagOverride, check, checks)
-    case ConsulOp.AgentDeregisterService(service) => agentDeregisterService(service)
-    case ConsulOp.AgentListServices               => agentListServices()
+      agentRegisterService(service, id, tags, address, port, enableTagOverride, check, checks).asInstanceOf[F[A]]
+    case ConsulOp.AgentDeregisterService(service) => agentDeregisterService(service).asInstanceOf[F[A]]
+    case ConsulOp.AgentListServices => agentListServices().asInstanceOf[F[A]]
     case ConsulOp.AgentEnableMaintenanceMode(id, enable, reason) =>
-      agentEnableMaintenanceMode(id, enable, reason)
+      agentEnableMaintenanceMode(id, enable, reason).asInstanceOf[F[A]]
   }
 
 
