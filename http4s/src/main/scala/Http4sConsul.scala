@@ -347,7 +347,6 @@ final class Http4sConsulClient[F[_]](
 
     for {
       _ <- F.delay(log.debug(s"registering $service with json: ${json.toString}"))
-      // req <- PUT(baseUri / "v1" / "agent" / "service" / "register", json).map(addConsulToken).map(addCreds)
       val req = addCreds(addConsulToken(Request(method = Method.PUT, uri = baseUri / "v1" / "agent" / "service" / "register")
         .withEntity(json)))
       response <- client.expectOr[String](req)(handleConsulErrorResponse)
