@@ -15,7 +15,7 @@ import org.http4s.client._
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.headers.Authorization
 import org.http4s.syntax.string.http4sStringSyntax
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 
 final class Http4sConsulClient[F[_]](
                                       baseUri: Uri,
@@ -33,7 +33,7 @@ final class Http4sConsulClient[F[_]](
   private implicit val listHealthNodesForServiceResponseDecoder: EntityDecoder[F, List[HealthNodesForServiceResponse]] =
     jsonOf[F, List[HealthNodesForServiceResponse]]
 
-  private val log =  LoggerFactory.getLogger(this.getClass)
+  private val log: Logger = LoggerFactory.getLogger(this.getClass)
 
 
   def apply[A](op: ConsulOp[A]): F[A] = op match {

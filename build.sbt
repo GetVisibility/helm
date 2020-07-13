@@ -1,5 +1,5 @@
 
-organization in ThisBuild := "com.getvisibility"
+organization in ThisBuild := "helm"
 
 scalaVersion in ThisBuild := "2.13.2"
 scalacOptions in ThisBuild := Seq("-unchecked", "-deprecation")
@@ -38,11 +38,14 @@ val dockeritVersion = "0.9.9"
 lazy val `http4s` = project
   .settings(
     libraryDependencies ++= Seq(
-    //  "io.verizon.journal" % "core_2.12" % "3.0.19",
+      //  "io.verizon.journal" % "core_2.12" % "3.0.19",
+      "ch.qos.logback" % "logback-classic" % "1.2.3",
+      //  "com.typesafe.play" %% "play-logback" % "2.8.2",
+      "org.slf4j" % "slf4j-nop" % "1.6.4",
       http4sOrg %% "http4s-blaze-client" % http4sVersion,
       http4sOrg %% "http4s-argonaut" % http4sVersion,
       "com.whisk" %% "docker-testkit-scalatest" % dockeritVersion % "test",
-      "com.whisk" %% "docker-testkit-impl-docker-java" % dockeritVersion % "test"//,
-    //  scalaTest
+      "com.whisk" %% "docker-testkit-impl-docker-java" % dockeritVersion % "test" //,
+      //  scalaTest
     )
   ).dependsOn(`core`)
