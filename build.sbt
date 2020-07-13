@@ -40,8 +40,6 @@ lazy val `http4s` = project
     libraryDependencies ++= Seq(
       //  "io.verizon.journal" % "core_2.12" % "3.0.19",
       "ch.qos.logback" % "logback-classic" % "1.2.3",
-      //  "com.typesafe.play" %% "play-logback" % "2.8.2",
-      "org.slf4j" % "slf4j-nop" % "1.6.4",
       http4sOrg %% "http4s-blaze-client" % http4sVersion,
       http4sOrg %% "http4s-argonaut" % http4sVersion,
       "com.whisk" %% "docker-testkit-scalatest" % dockeritVersion % "test",
