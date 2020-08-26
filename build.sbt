@@ -1,5 +1,5 @@
 organization in ThisBuild := "helm"
-scalaVersion in ThisBuild := "2.13.2"
+scalaVersion in ThisBuild := "2.13.3"
 version in ThisBuild := "4.0.0-SNAPSHOT"
 
 // Publishing-related settings:
